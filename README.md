@@ -1,0 +1,23 @@
+# WGS-Pipeline
+#DataPreprocessing
+
+fastqc raw_data.fastq.gz  # Run FastQC for quality assessment
+trimmomatic PE -threads <num_threads> raw_data_R1.fastq.gz raw_data_R2.fastq.gz \ trimmed_data_R1.fastq.gz trimmed_data_unpaired_R1.fastq.gz \ trimmed_data_R2.fastq.gz trimmed_data_unpaired_R2.fastq.gz \ ILLUMINACLIP:TruSeq3-PE.fa:2:30:10 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:36
+
+#ReferenceGenomeAlignment
+bwa index reference.fasta
+
+#ReadAlignment
+bwa mem -t <num_threads> -M -R '@RG\tID:sample1\tSM:sample1\tPL:illumina' \ reference.fasta trimmed_data_R1.fastq.gz trimmed_data_R2.fastq.gz > aligned.sam
+
+#SAM2BAM
+samtools view -@ <num_threads> -bS aligned.sam > aligned.bam
+samtools sort -@ <num_threads> -o sorted.bam aligned.bam
+samtools index sorted.bam
+
+#VariantCalling
+gatk HaplotypeCaller -R reference.fasta -I sorted.bam -O variants.vcf
+
+#VariantAnnotation
+annovar.pl variants.vcf humandb/ -buildver hg38 -out annotated_variants
+
